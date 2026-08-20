@@ -3,6 +3,7 @@
 import * as z from "zod";
 import bcrypt from "bcrypt";
 import { redirect } from "next/navigation";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession, getSession as getDbSession } from "@/lib/session";
 
@@ -24,6 +25,24 @@ export type AuthFormState =
 function safeReturnTo(formData: FormData): string | null {
   const value = formData.get("returnTo");
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
+/**
+ * Where a login lands when there's no returnTo (e.g. the customer went
+ * straight to /login rather than being bounced off some other page).
+ * A returnTo — including one pointing at a staff/admin page someone tried
+ * to access directly, like a bookmarked URL — always wins over this; see
+ * its use in login() below.
+ */
+function defaultDestination(role: Role): string {
+  switch (role) {
+    case "STAFF":
+      return "/staff/validate";
+    case "ADMIN":
+      return "/admin";
+    default:
+      return "/";
+  }
 }
 
 const RegisterSchema = z.object({
@@ -78,7 +97,7 @@ export async function login(_prevState: AuthFormState, formData: FormData): Prom
   }
 
   await createSession(user.id);
-  redirect(safeReturnTo(formData) ?? "/profile");
+  redirect(safeReturnTo(formData) ?? defaultDestination(user.role));
 }
 
 export async function logout() {

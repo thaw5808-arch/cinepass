@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 
 // Structural rather than imported from a specific source — satisfied by
-// both MockMovie and Prisma's Movie model, so callers can pass either.
+// Prisma's Movie model (and any other shape with these fields), so
+// callers don't need to reshape query results just to render a card.
 export type MovieCardMovie = {
   slug: string;
   title: string;

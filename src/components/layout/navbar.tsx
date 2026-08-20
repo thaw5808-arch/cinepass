@@ -22,6 +22,11 @@ export function Navbar({ user }: { user: CurrentUser }) {
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
+  // /staff and /admin get their own minimal role-specific shells (see
+  // RoleHeader) instead of the customer nav — three distinct layouts, not
+  // the customer site with extra chrome bolted on.
+  if (pathname.startsWith("/staff") || pathname.startsWith("/admin")) return null;
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-bg/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">

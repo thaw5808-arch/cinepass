@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { MoviesTable } from "./movies-table";
+import { ScreensTable } from "./screens-table";
 
-export default async function AdminMoviesPage() {
+export default async function AdminScreensPage() {
   // Independent ADMIN check — this page runs a real query on render, same
   // reasoning as admin/customers/page.tsx: a parent layout skipping
   // {children} on a stale client-side transition doesn't stop this page's
@@ -18,14 +18,22 @@ export default async function AdminMoviesPage() {
     );
   }
 
-  const movies = await prisma.movie.findMany({
-    select: { id: true, title: true, genres: true, durationMins: true, rating: true, status: true },
-    orderBy: { releaseDate: "desc" },
+  const screens = await prisma.screen.findMany({
+    select: { id: true, name: true, type: true, capacity: true, cinema: { select: { name: true } } },
+    orderBy: [{ cinema: { name: "asc" } }, { name: "asc" }],
   });
+
+  const rows = screens.map((s) => ({
+    id: s.id,
+    name: s.name,
+    cinemaName: s.cinema.name,
+    type: s.type,
+    capacity: s.capacity,
+  }));
 
   return (
     <div className="p-6">
-      <MoviesTable movies={movies} />
+      <ScreensTable screens={rows} />
     </div>
   );
 }

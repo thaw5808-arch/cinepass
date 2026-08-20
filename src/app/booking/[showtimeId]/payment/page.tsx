@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, QrCode, Landmark, Wallet, Loader2, AlertCircle } from "lucide-react";
 import { useBooking } from "@/lib/booking-context";
+import { confirmBookingAction } from "@/lib/actions/booking";
 
 type PaymentMethodOption = {
   id: "CARD" | "QR" | "BANK_TRANSFER" | "WALLET" | "APPLE_PAY" | "GOOGLE_PAY";
@@ -20,23 +21,42 @@ const METHODS: PaymentMethodOption[] = [
 
 type PaymentStatus = "IDLE" | "PENDING" | "FAILED";
 
+const DEFAULT_DECLINE_MESSAGE = "Payment failed. Your seats are still held — you can try again.";
+
 export default function PaymentPage() {
   const router = useRouter();
-  const { showtime, total, paymentMethod, setPaymentMethod } = useBooking();
+  const { showtime, selectedSeats, foodCart, total, paymentMethod, setPaymentMethod } = useBooking();
   const [status, setStatus] = useState<PaymentStatus>("IDLE");
+  const [errorMessage, setErrorMessage] = useState(DEFAULT_DECLINE_MESSAGE);
 
-  // NOTE: this simulates a gateway round-trip client-side. Replace with a
-  // real charge call to your payment provider, then confirm server-side via
-  // confirmSeats() + Payment.status = SUCCESS before routing onward — never
-  // trust a client-reported "success".
+  // NOTE: the gateway round-trip itself is still simulated client-side —
+  // swap this timeout for a real charge call when wiring up a provider.
+  // Once it reports success, though, everything downstream is real:
+  // confirmBookingAction() re-verifies the seat holds server-side and
+  // writes the Booking/Payment/Ticket rows — a client-reported "success"
+  // is never trusted on its own.
   const handlePay = () => {
     if (!paymentMethod) return;
     setStatus("PENDING");
-    setTimeout(() => {
+    setTimeout(async () => {
       const succeeded = Math.random() > 0.08; // occasional simulated decline
-      if (succeeded) {
-        router.push(`/booking/${showtime.showtimeId}/confirmation`);
+      if (!succeeded) {
+        setErrorMessage(DEFAULT_DECLINE_MESSAGE);
+        setStatus("FAILED");
+        return;
+      }
+
+      const result = await confirmBookingAction({
+        showtimeId: showtime.showtimeId,
+        showtimeSeatIds: selectedSeats.map((s) => s.id),
+        foodItems: foodCart.map((f) => ({ id: f.id, quantity: f.quantity })),
+        paymentMethod,
+      });
+
+      if (result.ok) {
+        router.push(`/booking/${showtime.showtimeId}/confirmation?booking=${result.bookingId}`);
       } else {
+        setErrorMessage(result.error);
         setStatus("FAILED");
       }
     }, 1600);
@@ -68,7 +88,7 @@ export default function PaymentPage() {
       {status === "FAILED" && (
         <div className="mb-6 flex items-center gap-2 rounded-md border border-velvet-red-bright/60 bg-velvet-red-bright/10 px-4 py-3 text-sm text-velvet-red-bright">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          Payment failed. Your seats are still held — you can try again.
+          {errorMessage}
         </div>
       )}
 
