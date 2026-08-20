@@ -1,0 +1,425 @@
+// CinePass — Cinema Ticket Booking Platform
+// Prisma schema — PostgreSQL (Neon)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Connection URL now lives in prisma.config.ts (Prisma 7 no longer reads
+// `url` from the schema file) and is passed to PrismaClient at runtime via
+// a driver adapter — see src/lib/prisma.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+// ────────────────────────────────
+// Users & roles
+// ────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         Role     @default(CUSTOMER)
+  city         String?
+  language     String   @default("en")
+  createdAt    DateTime @default(now())
+
+  bookings        Booking[]
+  notifications   Notification[]
+  favoriteMovies  FavoriteMovie[]
+  favoriteCinemas FavoriteCinema[]
+  seatHolds       ShowtimeSeat[]   @relation("HeldBy")
+  validatedTickets Ticket[]        @relation("ValidatedBy")
+  sessions        Session[]
+}
+
+// Server-side session record backing the signed httpOnly session cookie —
+// the cookie only ever carries this row's id (plus an HMAC signature), so a
+// session can be revoked immediately by deleting it here regardless of
+// whether the client's cookie is still around.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ────────────────────────────────
+// Movies
+// ────────────────────────────────
+
+enum MovieStatus {
+  COMING_SOON
+  NOW_SHOWING
+  ENDED
+}
+
+model Movie {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  title         String
+  synopsis      String
+  genres        String[]
+  durationMins  Int
+  rating        Float       @default(0)
+  ageRating     String
+  language      String
+  subtitles     String[]
+  director      String
+  cast          String[]
+  posterUrl     String
+  backdropUrl   String
+  trailerUrl    String?
+  releaseDate   DateTime
+  status        MovieStatus @default(COMING_SOON)
+  createdAt     DateTime    @default(now())
+
+  showtimes Showtime[]
+  favorites FavoriteMovie[]
+}
+
+model FavoriteMovie {
+  userId  String
+  movieId String
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie   Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@id([userId, movieId])
+}
+
+// ────────────────────────────────
+// Cinemas, screens, seats
+// ────────────────────────────────
+
+model Cinema {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  address   String
+  city      String
+  latitude  Float
+  longitude Float
+  formats   String[] // e.g. ["IMAX","VIP","DOLBY_ATMOS"]
+  createdAt DateTime @default(now())
+
+  screens   Screen[]
+  favorites FavoriteCinema[]
+  showtimes Showtime[]
+}
+
+model FavoriteCinema {
+  userId   String
+  cinemaId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cinema   Cinema @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cinemaId])
+}
+
+enum ScreenType {
+  STANDARD
+  IMAX
+  VIP
+  FOUR_DX
+  DOLBY_ATMOS
+}
+
+model Screen {
+  id       String     @id @default(cuid())
+  cinemaId String
+  name     String
+  type     ScreenType @default(STANDARD)
+  capacity Int
+
+  cinema    Cinema     @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  seats     Seat[]
+  showtimes Showtime[]
+
+  @@unique([cinemaId, name])
+}
+
+enum SeatCategory {
+  STANDARD
+  PREMIUM
+  VIP
+  ACCESSIBLE
+  COUPLE
+}
+
+// Physical seat — fixed layout per screen, independent of any single showtime
+model Seat {
+  id       String       @id @default(cuid())
+  screenId String
+  row      String // "A", "B", "C"...
+  number   Int
+  category SeatCategory @default(STANDARD)
+  posX     Int // grid column, for rendering the seat map
+  posY     Int // grid row
+
+  screen        Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showtimeSeats ShowtimeSeat[]
+
+  @@unique([screenId, row, number])
+}
+
+// ────────────────────────────────
+// Showtimes
+// ────────────────────────────────
+
+model Showtime {
+  id        String   @id @default(cuid())
+  movieId   String
+  cinemaId  String
+  screenId  String
+  startTime DateTime
+  endTime   DateTime
+  format    String // "2D","IMAX","4DX","VIP","Dolby Atmos"
+  language  String
+  subtitle  String?
+  basePrice Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  movie         Movie          @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  cinema        Cinema         @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  screen        Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showtimeSeats ShowtimeSeat[]
+  bookings      Booking[]
+
+  // No two showtimes may occupy the same screen at overlapping times —
+  // enforced in application logic (see lib/showtimes.ts); Prisma can't
+  // express overlap constraints directly.
+  @@index([screenId, startTime])
+  @@index([movieId, startTime])
+  @@index([cinemaId, startTime])
+}
+
+enum SeatStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+  BLOCKED
+}
+
+// Per-showtime state of a physical seat. This is the row that actually
+// gets locked during checkout — Seat itself never changes state.
+model ShowtimeSeat {
+  id            String     @id @default(cuid())
+  showtimeId    String
+  seatId        String
+  status        SeatStatus @default(AVAILABLE)
+  price         Decimal    @db.Decimal(10, 2)
+  heldByUserId  String?
+  holdExpiresAt DateTime?
+
+  showtime    Showtime     @relation(fields: [showtimeId], references: [id], onDelete: Cascade)
+  seat        Seat         @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  heldBy      User?        @relation("HeldBy", fields: [heldByUserId], references: [id])
+  bookingSeat BookingSeat?
+
+  @@unique([showtimeId, seatId])
+  @@index([showtimeId, status])
+}
+
+// ────────────────────────────────
+// Bookings
+// ────────────────────────────────
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  bookingRef   String        @unique // short human-facing code, e.g. CX8F92K1
+  userId       String
+  showtimeId   String
+  status       BookingStatus @default(PENDING)
+  promotionId  String?
+  ticketsTotal Decimal       @db.Decimal(10, 2)
+  foodTotal    Decimal       @default(0) @db.Decimal(10, 2)
+  bookingFee   Decimal       @default(0) @db.Decimal(10, 2)
+  discount     Decimal       @default(0) @db.Decimal(10, 2)
+  total        Decimal       @db.Decimal(10, 2)
+  createdAt    DateTime      @default(now())
+  expiresAt    DateTime // hold expiry inherited at booking creation
+
+  user       User          @relation(fields: [userId], references: [id])
+  showtime   Showtime      @relation(fields: [showtimeId], references: [id])
+  promotion  Promotion?    @relation(fields: [promotionId], references: [id])
+  seats      BookingSeat[]
+  foodOrder  FoodOrder?
+  payment    Payment?
+  ticket     Ticket?
+
+  @@index([userId, status])
+}
+
+model BookingSeat {
+  id             String @id @default(cuid())
+  bookingId      String
+  showtimeSeatId String @unique
+  price          Decimal @db.Decimal(10, 2)
+
+  booking      Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  showtimeSeat ShowtimeSeat @relation(fields: [showtimeSeatId], references: [id])
+}
+
+// ────────────────────────────────
+// Payments
+// ────────────────────────────────
+
+enum PaymentMethod {
+  CARD
+  QR
+  BANK_TRANSFER
+  WALLET
+  APPLE_PAY
+  GOOGLE_PAY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  bookingId      String        @unique
+  method         PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  amount         Decimal       @db.Decimal(10, 2)
+  providerRef    String? // gateway transaction id — never store raw card data
+  createdAt      DateTime      @default(now())
+  paidAt         DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// ────────────────────────────────
+// Tickets & QR validation
+// ────────────────────────────────
+
+enum TicketStatus {
+  ACTIVE
+  USED
+  CANCELLED
+  EXPIRED
+}
+
+model Ticket {
+  id          String       @id @default(cuid())
+  bookingId   String       @unique
+  qrToken     String       @unique @default(cuid()) // unique per-ticket identifier encoded in the QR
+  status      TicketStatus @default(ACTIVE)
+  issuedAt    DateTime     @default(now())
+  usedAt      DateTime?
+  validatedById String?
+
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  validatedBy User?   @relation("ValidatedBy", fields: [validatedById], references: [id])
+}
+
+// ────────────────────────────────
+// Food & beverage
+// ────────────────────────────────
+
+enum FoodCategory {
+  POPCORN
+  DRINKS
+  SNACKS
+  COMBOS
+  HOT_FOOD
+}
+
+model FoodItem {
+  id        String       @id @default(cuid())
+  name      String
+  category  FoodCategory
+  price     Decimal      @db.Decimal(10, 2)
+  imageUrl  String?
+  available Boolean      @default(true)
+
+  orderItems FoodOrderItem[]
+}
+
+model FoodOrder {
+  id        String @id @default(cuid())
+  bookingId String @unique
+
+  booking Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  items   FoodOrderItem[]
+}
+
+model FoodOrderItem {
+  id          String  @id @default(cuid())
+  foodOrderId String
+  foodItemId  String
+  quantity    Int
+  price       Decimal @db.Decimal(10, 2) // snapshot at time of order
+
+  foodOrder FoodOrder @relation(fields: [foodOrderId], references: [id], onDelete: Cascade)
+  foodItem  FoodItem  @relation(fields: [foodItemId], references: [id])
+}
+
+// ────────────────────────────────
+// Promotions
+// ────────────────────────────────
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  COMBO
+}
+
+model Promotion {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  title         String
+  description   String
+  discountType  DiscountType
+  discountValue Decimal      @db.Decimal(10, 2)
+  minSpend      Decimal?     @db.Decimal(10, 2)
+  validFrom     DateTime
+  validTo       DateTime
+  active        Boolean      @default(true)
+  usageLimit    Int?
+  usedCount     Int          @default(0)
+
+  bookings Booking[]
+}
+
+// ────────────────────────────────
+// Notifications
+// ────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}

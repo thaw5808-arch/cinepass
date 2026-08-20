@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  /* House lights down — an indigo-black, not a flat black */
+  --bg: #0c0b10;
+  --bg-elevated: #17151d;
+  --bg-card: #1c1a24;
+  --border: #2a2733;
+
+  --text-primary: #f5f1e8;
+  --text-muted: #9c97a8;
+
+  --marquee-gold: #e3b23c;
+  --marquee-gold-dim: #8a6c26;
+  --velvet-red: #9a2a42;
+  --velvet-red-bright: #c33b58;
+  --screen-glow: #6ec7d8;
+
+  --font-display: var(--font-bebas);
+  --font-body: var(--font-inter);
+  --font-mono: var(--font-plex-mono);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-card: var(--bg-card);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-marquee-gold: var(--marquee-gold);
+  --color-marquee-gold-dim: var(--marquee-gold-dim);
+  --color-velvet-red: var(--velvet-red);
+  --color-velvet-red-bright: var(--velvet-red-bright);
+  --color-screen-glow: var(--screen-glow);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Sprocket-hole divider — the film-strip motif used between major sections */
+.sprocket-divider {
+  height: 20px;
+  background-image: radial-gradient(circle, var(--border) 3px, transparent 3.5px);
+  background-size: 24px 20px;
+  background-repeat: repeat-x;
+  background-position: center;
+  opacity: 0.7;
+}
+
+/* Visible keyboard focus everywhere — seat buttons especially */
+:focus-visible {
+  outline: 2px solid var(--marquee-gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
