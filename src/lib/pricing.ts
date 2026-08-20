@@ -1,10 +1,31 @@
-import { Prisma, DiscountType } from "@prisma/client";
+import { Prisma, DiscountType, SeatCategory } from "@prisma/client";
 
 const Decimal = Prisma.Decimal;
 type Decimal = Prisma.Decimal;
 export { generateBookingRef } from "@/lib/booking-ref";
 
 export const BOOKING_FEE = new Decimal(20);
+
+/**
+ * Per-category seat price markup over a showtime's base price. Mirrors
+ * priceFor() in prisma/seed.ts exactly — that script deliberately stays
+ * import-free of src/lib (see its own header comment), so this is kept in
+ * sync by hand rather than shared; admin-created showtimes (see
+ * actions/showtimes.ts) use this so their ShowtimeSeat prices come out
+ * consistent with seeded ones.
+ */
+export function seatPriceFor(category: SeatCategory, basePrice: number): number {
+  switch (category) {
+    case "VIP":
+      return basePrice + 120;
+    case "PREMIUM":
+      return basePrice + 60;
+    case "COUPLE":
+      return basePrice * 2 + 80;
+    default:
+      return basePrice;
+  }
+}
 
 export function foodTotal(items: { price: Decimal; quantity: number }[]) {
   return items.reduce((sum, i) => sum.add(i.price.mul(i.quantity)), new Decimal(0));
