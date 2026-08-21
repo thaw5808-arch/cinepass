@@ -13,7 +13,7 @@ const NAV = [
   { label: "Bookings", href: "/admin/bookings" },
   { label: "Customers", href: "/admin/customers" },
   { label: "Payments", href: "/admin/payments" },
-  { label: "Food & Beverage", href: "/admin/food" },
+  { label: "Food & Beverage", href: "/admin/food-beverage" },
   { label: "Promotions", href: "/admin/promotions" },
   // Ticket scanning lives under /staff, not /admin — shared tool, not an
   // admin-only page, so it's linked here rather than duplicated.
