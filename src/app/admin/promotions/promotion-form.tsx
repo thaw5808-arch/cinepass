@@ -2,12 +2,18 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { DiscountType } from "@prisma/client";
+import type { DiscountType } from "@prisma/client";
 import {
   createPromotionAction,
   updatePromotionAction,
   type PromotionFormState,
 } from "@/lib/actions/promotions";
+
+// Plain string values, not Object.values(DiscountType) — DiscountType is
+// only imported as a type above. Prisma enums are real runtime objects
+// backed by the generated client, so a value import of one drags Prisma's
+// whole server-only chain into the client bundle (same fix as lib/food.ts).
+const DISCOUNT_TYPES: DiscountType[] = ["PERCENTAGE", "FIXED_AMOUNT", "COMBO"];
 
 const DISCOUNT_TYPE_LABEL: Record<DiscountType, string> = {
   PERCENTAGE: "Percentage",
@@ -89,7 +95,7 @@ export function PromotionForm({
       <div className="grid grid-cols-2 gap-4">
         <Field label="Discount Type" htmlFor="discountType" errors={state?.errors?.discountType}>
           <select id="discountType" name="discountType" defaultValue={values.discountType} className={inputClass}>
-            {Object.values(DiscountType).map((t) => (
+            {DISCOUNT_TYPES.map((t) => (
               <option key={t} value={t}>
                 {DISCOUNT_TYPE_LABEL[t]}
               </option>

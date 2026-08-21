@@ -2,8 +2,14 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { ScreenType } from "@prisma/client";
+import type { ScreenType } from "@prisma/client";
 import { createScreenAction, updateScreenAction, type ScreenFormState } from "@/lib/actions/screens";
+
+// Plain string values, not Object.values(ScreenType) — ScreenType is only
+// imported as a type above. Prisma enums are real runtime objects backed by
+// the generated client, so a value import of one drags Prisma's whole
+// server-only chain into the client bundle (same fix as lib/food.ts).
+const SCREEN_TYPES: ScreenType[] = ["STANDARD", "IMAX", "VIP", "FOUR_DX", "DOLBY_ATMOS"];
 
 const TYPE_LABEL: Record<ScreenType, string> = {
   STANDARD: "Standard",
@@ -76,7 +82,7 @@ export function ScreenForm({
       <div className="grid grid-cols-2 gap-4">
         <Field label="Type" htmlFor="type" errors={state?.errors?.type}>
           <select id="type" name="type" defaultValue={values.type} className={inputClass}>
-            {Object.values(ScreenType).map((t) => (
+            {SCREEN_TYPES.map((t) => (
               <option key={t} value={t}>
                 {TYPE_LABEL[t]}
               </option>

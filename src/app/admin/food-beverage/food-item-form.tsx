@@ -2,12 +2,18 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { FoodCategory } from "@prisma/client";
+import type { FoodCategory } from "@prisma/client";
 import {
   createFoodItemAction,
   updateFoodItemAction,
   type FoodItemFormState,
 } from "@/lib/actions/food";
+
+// Plain string values, not Object.values(FoodCategory) — FoodCategory is
+// only imported as a type above. Prisma enums are real runtime objects
+// backed by the generated client, so a value import of one drags Prisma's
+// whole server-only chain into the client bundle (same fix as lib/food.ts).
+const FOOD_CATEGORIES: FoodCategory[] = ["POPCORN", "DRINKS", "SNACKS", "COMBOS", "HOT_FOOD"];
 
 const CATEGORY_LABEL: Record<FoodCategory, string> = {
   POPCORN: "Popcorn",
@@ -57,7 +63,7 @@ export function FoodItemForm({
       <div className="grid grid-cols-2 gap-4">
         <Field label="Category" htmlFor="category" errors={state?.errors?.category}>
           <select id="category" name="category" defaultValue={values.category} className={inputClass}>
-            {Object.values(FoodCategory).map((c) => (
+            {FOOD_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {CATEGORY_LABEL[c]}
               </option>

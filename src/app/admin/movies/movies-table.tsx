@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { MovieStatus } from "@prisma/client";
+import type { MovieStatus } from "@prisma/client";
 import { deleteMovieAction } from "@/lib/actions/movies";
 
 export type MovieRow = {

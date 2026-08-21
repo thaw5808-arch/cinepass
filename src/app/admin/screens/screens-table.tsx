@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { ScreenType } from "@prisma/client";
+import type { ScreenType } from "@prisma/client";
 import { deleteScreenAction } from "@/lib/actions/screens";
 
 export type ScreenRow = {

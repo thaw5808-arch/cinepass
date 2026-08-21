@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Minus, Plus, X } from "lucide-react";
-import { FoodCategory } from "@prisma/client";
+import type { FoodCategory } from "@prisma/client";
 import { useBooking } from "@/lib/booking-context";
 
 export type FoodMenuItem = {

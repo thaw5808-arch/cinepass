@@ -2,8 +2,14 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { MovieStatus } from "@prisma/client";
+import type { MovieStatus } from "@prisma/client";
 import { createMovieAction, updateMovieAction, type MovieFormState } from "@/lib/actions/movies";
+
+// Plain string values, not Object.values(MovieStatus) — MovieStatus is only
+// imported as a type above. Prisma enums are real runtime objects backed by
+// the generated client, so a value import of one drags Prisma's whole
+// server-only chain into the client bundle (same fix as lib/food.ts).
+const MOVIE_STATUSES: MovieStatus[] = ["COMING_SOON", "NOW_SHOWING", "ENDED"];
 
 const STATUS_LABEL: Record<MovieStatus, string> = {
   COMING_SOON: "Coming Soon",
@@ -172,7 +178,7 @@ export function MovieForm({
 
         <Field label="Status" htmlFor="status" errors={state?.errors?.status}>
           <select id="status" name="status" defaultValue={values.status} className={inputClass}>
-            {Object.values(MovieStatus).map((s) => (
+            {MOVIE_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABEL[s]}
               </option>

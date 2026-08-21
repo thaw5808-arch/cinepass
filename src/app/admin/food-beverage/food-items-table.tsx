@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { FoodCategory } from "@prisma/client";
+import type { FoodCategory } from "@prisma/client";
 import { deleteFoodItemAction, toggleFoodItemAvailabilityAction } from "@/lib/actions/food";
 
 export type FoodItemRow = {

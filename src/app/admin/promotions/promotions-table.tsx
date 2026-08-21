@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { DiscountType } from "@prisma/client";
+import type { DiscountType } from "@prisma/client";
 import { deletePromotionAction } from "@/lib/actions/promotions";
 
 export type PromotionRow = {

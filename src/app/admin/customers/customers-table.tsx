@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
 import { updateUserRoleAction } from "@/lib/actions/users";
 
 export type CustomerRow = {
@@ -12,7 +12,7 @@ export type CustomerRow = {
   joined: string;
 };
 
-const ROLE_OPTIONS: Role[] = [Role.CUSTOMER, Role.STAFF, Role.ADMIN];
+const ROLE_OPTIONS: Role[] = ["CUSTOMER", "STAFF", "ADMIN"];
 
 type RowStatus = { kind: "success" | "error"; message: string };
 
