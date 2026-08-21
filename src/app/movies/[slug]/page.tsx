@@ -3,6 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Play, Ticket } from "lucide-react";
 import { getMovieBySlug, getUpcomingShowtimesForMovie } from "@/lib/movies";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
+import { FavoriteButton } from "@/components/favorite-button";
 
 function dateKey(d: Date) {
   return d.toISOString().slice(0, 10); // YYYY-MM-DD, in UTC
@@ -29,7 +32,15 @@ export default async function MovieDetailsPage({
   const movie = await getMovieBySlug(slug);
   if (!movie) notFound();
 
-  const showtimes = await getUpcomingShowtimesForMovie(movie.id);
+  const [showtimes, user] = await Promise.all([getUpcomingShowtimesForMovie(movie.id), getCurrentUser()]);
+  const isFavorited = user
+    ? Boolean(
+        await prisma.favoriteMovie.findUnique({
+          where: { userId_movieId: { userId: user.id, movieId: movie.id } },
+          select: { userId: true },
+        })
+      )
+    : false;
 
   // Group upcoming showtimes by calendar date, then by cinema/screen.
   const dates = Array.from(new Set(showtimes.map((s) => dateKey(s.startTime)))).sort();
@@ -59,7 +70,10 @@ export default async function MovieDetailsPage({
           </div>
 
           <div className="pt-4 sm:pt-28 space-y-4">
-            <h1 className="font-display text-4xl sm:text-5xl tracking-wide">{movie.title}</h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="font-display text-4xl sm:text-5xl tracking-wide">{movie.title}</h1>
+              <FavoriteButton kind="movie" id={movie.id} initialFavorited={isFavorited} className="mt-2 shrink-0" />
+            </div>
             <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted font-mono">
               {movie.rating > 0 && (
                 <span className="rounded border border-marquee-gold-dim px-1.5 py-0.5 text-marquee-gold">
