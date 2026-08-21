@@ -15,6 +15,7 @@ export default async function MyTicketsPage() {
     include: {
       showtime: { include: { movie: true, cinema: true, screen: true } },
       seats: { include: { showtimeSeat: { include: { seat: true } } } },
+      payment: true,
     },
     orderBy: { showtime: { startTime: "desc" } },
   });
@@ -41,6 +42,7 @@ export default async function MyTicketsPage() {
       date: format(b.showtime.startTime, "MMMM d, yyyy"),
       time: format(b.showtime.startTime, "h:mm a"),
       seats: seatLabels || "—",
+      refundedAt: b.payment?.refundedAt ? format(b.payment.refundedAt, "MMM d, yyyy") : null,
     };
 
     if (b.status === "CANCELLED") cancelled.push(summary);

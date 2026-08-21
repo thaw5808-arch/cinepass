@@ -25,7 +25,7 @@ const DEFAULT_DECLINE_MESSAGE = "Payment failed. Your seats are still held — y
 
 export default function PaymentPage() {
   const router = useRouter();
-  const { showtime, selectedSeats, foodCart, total, paymentMethod, setPaymentMethod } = useBooking();
+  const { showtime, selectedSeats, foodCart, appliedPromo, total, paymentMethod, setPaymentMethod } = useBooking();
   const [status, setStatus] = useState<PaymentStatus>("IDLE");
   const [errorMessage, setErrorMessage] = useState(DEFAULT_DECLINE_MESSAGE);
 
@@ -51,6 +51,7 @@ export default function PaymentPage() {
         showtimeSeatIds: selectedSeats.map((s) => s.id),
         foodItems: foodCart.map((f) => ({ id: f.id, quantity: f.quantity })),
         paymentMethod,
+        promoCode: appliedPromo?.code,
       });
 
       if (result.ok) {

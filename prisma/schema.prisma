@@ -309,6 +309,7 @@ model Payment {
   providerRef    String? // gateway transaction id — never store raw card data
   createdAt      DateTime      @default(now())
   paidAt         DateTime?
+  refundedAt     DateTime? // set alongside status -> REFUNDED, atomically with the Booking cancellation (see cancelBookingAction)
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 }

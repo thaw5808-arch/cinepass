@@ -23,6 +23,14 @@ export type ShowtimeInfo = {
 
 type PaymentMethod = "CARD" | "QR" | "BANK_TRANSFER" | "WALLET" | "APPLE_PAY" | "GOOGLE_PAY";
 
+export type AppliedPromo = {
+  code: string;
+  // Preview only, computed by applyPromoCodeAction — never trusted as the
+  // real charge. confirmBookingAction re-validates the code and recomputes
+  // this from the server's own totals at booking time (see actions/booking.ts).
+  discount: number;
+};
+
 type BookingState = {
   showtime: ShowtimeInfo;
   selectedSeats: SeatMapSeat[];
@@ -34,9 +42,12 @@ type BookingState = {
   paymentMethod: PaymentMethod | null;
   setPaymentMethod: (m: PaymentMethod) => void;
   bookingRef: string;
+  appliedPromo: AppliedPromo | null;
+  setAppliedPromo: (promo: AppliedPromo | null) => void;
   ticketsTotal: number;
   foodTotal: number;
   bookingFee: number;
+  discount: number;
   total: number;
 };
 
@@ -55,6 +66,7 @@ export function BookingProvider({
   const [foodCart, setFoodCart] = useState<FoodCartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [bookingRef] = useState(() => generateBookingRef());
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
 
   const addFoodItem = (item: { id: string; name: string; price: number }) => {
     setFoodCart((prev) => {
@@ -83,7 +95,8 @@ export function BookingProvider({
     () => foodCart.reduce((sum, f) => sum + f.price * f.quantity, 0),
     [foodCart]
   );
-  const total = ticketsTotal + foodTotal + (selectedSeats.length > 0 ? BOOKING_FEE : 0);
+  const discount = appliedPromo?.discount ?? 0;
+  const total = ticketsTotal + foodTotal + (selectedSeats.length > 0 ? BOOKING_FEE : 0) - discount;
 
   return (
     <BookingContext.Provider
@@ -98,9 +111,12 @@ export function BookingProvider({
         paymentMethod,
         setPaymentMethod,
         bookingRef,
+        appliedPromo,
+        setAppliedPromo,
         ticketsTotal,
         foodTotal,
         bookingFee: selectedSeats.length > 0 ? BOOKING_FEE : 0,
+        discount,
         total,
       }}
     >

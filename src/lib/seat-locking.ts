@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { SeatStatus } from "@prisma/client";
+import { Prisma, SeatStatus } from "@prisma/client";
 
 const HOLD_MINUTES = Number(process.env.SEAT_HOLD_MINUTES ?? 10);
 
@@ -101,9 +101,19 @@ export async function confirmSeats(showtimeSeatIds: string[], userId: string) {
   });
 }
 
-/** Cancellation: BOOKED -> AVAILABLE, releasing the seats back into inventory. */
-export async function releaseBookedSeats(showtimeSeatIds: string[]) {
-  await prisma.showtimeSeat.updateMany({
+/**
+ * Cancellation: BOOKED -> AVAILABLE, releasing the seats back into
+ * inventory. Takes an optional transaction client (defaulting to the plain
+ * `prisma` singleton) so callers that need this atomic with other writes —
+ * cancelBookingAction's refund update, confirmBookingAction's rollback on a
+ * failed write — can pass their own `tx` and have it run inside the same
+ * transaction rather than as a separate commit.
+ */
+export async function releaseBookedSeats(
+  showtimeSeatIds: string[],
+  client: Prisma.TransactionClient = prisma
+) {
+  await client.showtimeSeat.updateMany({
     where: { id: { in: showtimeSeatIds }, status: SeatStatus.BOOKED },
     data: { status: SeatStatus.AVAILABLE, heldByUserId: null, holdExpiresAt: null },
   });

@@ -17,6 +17,9 @@ export type TicketSummary = {
   date: string;
   time: string;
   seats: string;
+  // Only meaningful on a cancelled booking — the date its Payment was
+  // refunded, or null if it had no successful payment to refund.
+  refundedAt: string | null;
 };
 
 export function MyTicketsList({
@@ -50,7 +53,7 @@ export function MyTicketsList({
     const booking = upcoming.find((b) => b.bookingId === bookingId);
     if (!booking) return;
     setUpcoming((prev) => prev.filter((b) => b.bookingId !== bookingId));
-    setCancelled((prev) => [booking, ...prev]);
+    setCancelled((prev) => [{ ...booking, refundedAt: result.refundedAt }, ...prev]);
   };
 
   const list = tab === "Upcoming" ? upcoming : tab === "Cancelled" ? cancelled : completed;
@@ -100,6 +103,16 @@ export function MyTicketsList({
                 </div>
                 <QrCode className="h-10 w-10 text-marquee-gold shrink-0" />
               </div>
+
+              {tab === "Cancelled" && (
+                <p className="mt-3 border-t border-border pt-3 text-xs">
+                  {t.refundedAt ? (
+                    <span className="text-screen-glow">Refunded · {t.refundedAt}</span>
+                  ) : (
+                    <span className="text-text-muted">No refund on file for this booking.</span>
+                  )}
+                </p>
+              )}
 
               {tab === "Upcoming" && (
                 <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
